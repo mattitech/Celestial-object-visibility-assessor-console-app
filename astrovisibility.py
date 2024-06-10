@@ -9,59 +9,15 @@ from astroplan import Observer, FixedTarget
 from astropy.coordinates import get_body, solar_system_ephemeris    
 from astroplan import moon_illumination
 
-def favorites():
+def favorites(observer_location, local_time):
+    ++fav_iteration
+   
     #put your favorite deep space targets in this array
     dsos = ["M31", "M45", "M33", "M51", "NGC2024", "Orion nebula"]
     #you can also put planets
     planets = ["Jupiter", "Saturn", "Mars", "Venus", "Uranus", "Neptune", "Mercury"]
     
-    while True:
-     
-        city_name = input("type city name: ('d' for default) ")
-        try:
-            if city_name == "d":
-                observer_location = geolocator.geocode(default_city)
-                observer_location = EarthLocation(lat=observer_location.latitude, lon=observer_location.longitude)
-                city_name = default_city
-                break
-
-
-            else:
-                observer_location = geolocator.geocode(city_name)
-                if observer_location is None:
-                    print("Your city wasn't found")
-                    continue
-                observer_location = EarthLocation(lat=observer_location.latitude, lon=observer_location.longitude)
-                print(f"You chose the city: {city_name}")
-                break
-
-            print(f"Location for {city_name}: lat={observer_location.lat}, lon={observer_location.lon}")
-            break
-        except Exception as e:
-            print(f"Your city wasn't found. Error: {e}")
-            continue
-    while True:
-        print ("------------------------------------------------------------ ")
-        date = input("type date YYYY-MM-DD HH:MM:SS (or 'now'): ")
-    
-    
-        if date == "now":
-            specific_time = Time.now()
-            local_time = specific_time
-            print(f"Time chosen (local time): {local_time}")
-            break
-     
-       
-        else:
-            try:
-                specific_time = Time(date)
-                local_time = specific_time
-                print(f"Time chosen (local time): {local_time}")
-                break
-            except Exception as e:
-                print(f"Invalid date format. Error: {e}")
-                continue
-            
+   
    
     print(" ")
     
@@ -80,7 +36,7 @@ def favorites():
             if altitude > 0:
                 observer = Observer(location=observer_location)
                 target = FixedTarget(coord=dso_position, name=dso)
-                set_time = observer.target_set_time(specific_time, target, which='nearest')
+                set_time = observer.target_set_time(local_time, target, which='nearest')
                 set_direction_az = rise_set_direction(dso, set_time.iso, observer_location)
             
                 set_direction = cardinal((set_direction_az).deg)
@@ -109,16 +65,17 @@ def favorites():
             
                 observer = Observer(location=observer_location)
                 target = FixedTarget(coord=dso_position, name=dso)
-                set_time = observer.target_set_time(specific_time, target, which='nearest')
+                set_time = observer.target_set_time(local_time, target, which='nearest')
                 print(f"|rise: {set_time.iso}" , end="")
+                set_direction_az = rise_set_direction(dso, set_time.iso, observer_location)
+                direction = cardinal((set_direction_az).deg)
+                print(f" at {direction}", end=" ")
                 transit_time = observer.target_meridian_transit_time(local_time, target, which='next')
-                print(f"{dso} transit: {transit_time.iso}', ", end=" ")
+                print(f"|{dso} transit: {transit_time.iso}', ", end=" ")
                 transit_height = max_height(dso, transit_time.iso, observer_location)
                 print(f"({transit_height})") 
         
-                set_direction_az = rise_set_direction(dso, set_time.iso, observer_location)
-                direction = cardinal((set_direction_az).deg)
-                print(f" at {direction}")
+               
            except:
                print("There was an error with this object:")
     else:
@@ -156,113 +113,12 @@ def favorites():
                 print(f"rise:{rise_time.iso}")
     else:
         print("you have no planets in your favorites")
+    hour_shift_fav(observer_location, local_time)
             
             
-    return
-           
-    
-        
    
-        
-        
-def max_height(object, time, geolocation):
-    try:
-        astroposition = SkyCoord.from_name(object)
-    
-        altaz_frame = AltAz(obstime=time, location=geolocation)
-
-        dso_altaz = astroposition.transform_to(altaz_frame)
-    
-        return dso_altaz.alt
-    except:
-        print("there was an error retrieving coordinates")
-    
-    
-def rise_set_direction(object, time, geolocation):
-    try:
-        astroposition = SkyCoord.from_name(object)
-    
-        altaz_frame = AltAz(obstime=time, location=geolocation)
-
-        dso_altaz = astroposition.transform_to(altaz_frame)
-    
-        return dso_altaz.az
-    except:
-        print("there was an error retrieving coordinates")
-    
-    
-def cardinal(az):
-    if az >= 337.5 or az <= 22.5:
-        cardinal = "N"
-    elif az > 22.5 and az <= 45:
-        cardinal = "NNE"
-    elif az > 45 and az <= 67.5:
-        cardinal = "NE"
-    elif az > 67.5 and az <= 90:
-        cardinal = "ENE"
-    elif az > 90 and az <= 112.5:
-        cardinal = "E"
-    elif az > 112.5 and az <= 135:
-        cardinal = "ESE"
-    elif az > 135 and az <= 157.5:
-        cardinal = "SE"
-    elif az > 157.5 and az <= 180:
-        cardinal = "SSE"
-    elif az > 180 and az <= 202.5:
-        cardinal = "S"
-    elif az > 202.5 and az <= 225:
-        cardinal = "SSW"
-    elif az > 225 and az <= 247.5:
-        cardinal = "SW"
-    elif az > 247.5 and az <= 270:
-        cardinal = "WSW"
-    elif az > 270 and az <= 292.5:
-        cardinal = "W"
-    elif az > 292.5 and az <= 315:
-        cardinal = "WNW"
-    elif az > 315 and az <= 337.5:
-        cardinal = "NW"
-    else:
-        cardinal = "Invalid"
-    
-    
-  
-    return cardinal
-        
-
-while True:
-    # Initializes geocoder
-    geolocator = Nominatim(user_agent="city_geocoder")
-    default_city = "Rome"
-
-    print("------------------------------------------------------------ ")
-    print("CELESTIAL OBJECT VISIBILITY ASSESSOR")
-
-    dso = input("please type identifier for a deep space object, else 'f' to see your favorites or 'help': ")
-    if(dso == "help"):
-        print("This console app quickly provides the user with Alt/Az coordinates of a given Deep space object and uses that data to assess its overall visibility and to calculate rising/set times, along with the maximum field rotation at a certain exposure. Here's a few tips to use the program:")
-        print(" ")
-        print(f"1) The Skycoord function uses the SIMBAD database and as input, if you input a DSO's name and it doesn't get recognized, you might want to try typing its identifier(Messier, NGC, Coldwell). If an identifier is typed, such as C20 (north america nebula) and the object is still not found, try to input its alternate identifiers using NGC or Messier ")
-        print(f"2) The field rotation calculator is based on the methods discussed in this video 'https://youtu.be/WacU_S_iWHQ?si=iVpUZ4UM7IzRD-78'")
-        print("3) Currently the program doesn't really account for time zones, so it might display the wrong time while still providing the correct current coordinates, depending on your system")
-        print(f"4) You can change the default city in the code, look for the variable named 'default_city'. Your current default city is  - {default_city} - ")
-        continue
-    elif(dso == 'f'):
-        favorites()
-        continue
-    else:
-        # Pulls Ra/Dec coordinates of the DSO
-        try:
-            astroposition = SkyCoord.from_name(dso)
-        
-        except Exception as e:
-            print(f"The object {dso} wasn't found in the database. Error: {e}")
-            continue
-        print(" ---------------------------------------------------------- ")
- 
-    
-    # Finds the city
-    while True:
+def city():
+     while True:
      
         city_name = input("type city name: ('d' for default) ")
         try:
@@ -270,37 +126,122 @@ while True:
                 observer_location = geolocator.geocode(default_city)
                 observer_location = EarthLocation(lat=observer_location.latitude, lon=observer_location.longitude)
                 city_name = default_city
+                print(f"coordinates for{city_name}: LAT: {observer_location.lat}, LON: {observer_location.lon} ")
+                break
+
+
             else:
                 observer_location = geolocator.geocode(city_name)
+                print(f"coordinates for{city_name}: LAT: {observer_location.lat}, LON: {observer_location.lon} ")
                 if observer_location is None:
                     print("Your city wasn't found")
                     continue
                 observer_location = EarthLocation(lat=observer_location.latitude, lon=observer_location.longitude)
                 print(f"You chose the city: {city_name}")
+                break
 
             print(f"Location for {city_name}: lat={observer_location.lat}, lon={observer_location.lon}")
             break
         except Exception as e:
             print(f"Your city wasn't found. Error: {e}")
             continue
-    print ("------------------------------------------------------------ ")
-    date = input("type date YYYY-MM-DD HH:MM:SS (or 'now'): ")
-
-    if date == "now":
-        specific_time = Time.now()
-        local_time = specific_time
+    
+     return observer_location
+def get_time():
+     while True:
+        print ("------------------------------------------------------------ ")
+        date = input("type date YYYY-MM-DD HH:MM:SS (or 'now'): ")
+    
+    
+        if date == "now":
+            specific_time = Time.now()
+            local_time = specific_time
+            print(f"Time chosen (local time): {local_time}")
+            break
      
        
+        else:
+            try:
+                specific_time = Time(date)
+                local_time = specific_time
+                print(f"Time chosen (local time): {local_time}")
+                break
+            except Exception as e:
+                print(f"Invalid date format. Error: {e}")
+                continue
+     return local_time
+     
+def hour_shift_fav(observer_location, local_time):
+    print(" ")
+    hour = input("see results for a different hour, select +, - or any other key to reload")
+    if(hour == "+"):
+        while True:
+         try:
+            total_shift = int(input("select how many hours: "))
+            local_time += total_shift * u.hour
+            print(f"showing results for: {local_time}")
+            break
+         except:
+             print("you must type a valid number")
+             continue
+         
+        favorites(observer_location, local_time)
+        
+        
+    elif(hour == "-"):
+        while True:
+         try:
+            total_shift = int(input("select how many hours: "))
+            local_time -= total_shift * u.hour
+            print(f"showing results for: {local_time}")
+            break
+         except:
+             print("you must type a valid number")
+             continue
+         
+        
+        favorites(observer_location, local_time)
+        
     else:
-        try:
-            specific_time = Time(date)
-            local_time = specific_time
-        except Exception as e:
-            print(f"Invalid date format. Error: {e}")
-            continue
-    print(f"Time chosen (local time): {local_time}")
-
-    # Creates a frame for Ra/Dec - Alt/Az conversion using the input time and the observer location
+        return 
+    
+def hour_shift_dso(observer_location, dso, local_time):
+    print(" ")
+    hour = input("see results for a different hour, select +, - or any other key to reload")
+    if(hour == "+"):
+       while True:
+         try:
+            total_shift = int(input("select how many hours: "))
+            local_time += total_shift * u.hour
+            print(f"showing results for: {local_time}")
+            break
+         except:
+             print("you must type a valid number")
+             continue
+         
+        
+       repeat(local_time, observer_location, dso)
+        
+        
+    elif(hour == "-"):
+       while True:
+         try:
+            total_shift = int(input("select how many hours: "))
+            local_time -= total_shift * u.hour
+            print(f"showing results for: {local_time}")
+            break
+         except:
+             print("you must type a valid number")
+             continue
+       repeat(local_time, observer_location, dso)
+         
+        
+    else:
+        return
+    
+def repeat(local_time, observer_location, dso):
+    astroposition = SkyCoord.from_name(dso)
+    
     altaz_frame = AltAz(obstime=local_time, location=observer_location)
 
     # Transforms the DSO coordinates to Alt/Az
@@ -308,7 +249,7 @@ while True:
     print(" ")
     print("------------------------------------------------------------ ")
     print("RESULTS: ")
-    print(f"{dso}'s alt-az coordinates are: Altitude {dso_altaz.alt}, Azimuth {dso_altaz.az}, at {city_name}")
+    print(f"{dso}'s alt-az coordinates are: Altitude {dso_altaz.alt}, Azimuth {dso_altaz.az}")
     print(" ")
     print("VISIBILITY: ", end=" ")
     altitude = dso_altaz.alt.deg
@@ -323,6 +264,8 @@ while True:
             print("visible but Seestar might struggle (very high in the sky)")
         elif altitude > 85:
             print("visible but Seestar can't track the object (directly overhead)")
+            
+        
         
         observer = Observer(location=observer_location)
         target = FixedTarget(coord=astroposition, name=dso)
@@ -335,7 +278,7 @@ while True:
         
         
         
-        set_time = observer.target_set_time(specific_time, target, which='nearest')
+        set_time = observer.target_set_time(local_time, target, which='nearest')
         print(f"{dso} will set on {set_time.iso}", end="")
         
         try:
@@ -370,11 +313,14 @@ while True:
                 print(" ")
 
             if(illumination_percentage < 10):
-                print(f"but its not very bright ({illumination_percentage:.2}%)")
+                print(f"but its not very bright ({illumination_percentage:.2f}%)")
+            elif(illumination_percentage > 10 and illumination_percentage < 40):
+                print(f"and its moderately bright({illumination_percentage:.2f}%)")
             elif(illumination_percentage > 40 and illumination_percentage < 70):
-                print(f"and it is considerably bright({illumination_percentage:.2}%)")
+                print(f"and it is considerably bright({illumination_percentage:.2f}%)")
             else:
                 print(f"and it is very bright({illumination_percentage:.2f}%)")
+                
                 
         else:
             print(f"the moon is under the horizon {round(moon_altaz.alt.deg, 2)}")
@@ -410,10 +356,17 @@ while True:
 
         print(" ")
        
-        continue
-
-
+        hour_shift(observer_location, dso, local_time)
     
+    rotation = field_rotation(observer_location, dso_altaz)
+    print(rotation)
+    
+    hour_shift_dso(observer_location, dso, local_time)
+   
+    
+    
+    
+def field_rotation(observer_location, dso_altaz):
     print(" ")
     print("FIELD ROTATION CALCULATE: ")
     print(" ")
@@ -497,11 +450,248 @@ while True:
     print(f"max sensor movement: {round(sensor_movement, 2)} pixels -", end=" ")
     
     if(abs(round(sensor_movement, 2)) > 1 and abs(round(sensor_movement, 2)) < 3 ):
-        print("noticeable")
+        shift = "noticeable"
     elif(abs(round(sensor_movement, 2)) > 3 and abs(round(sensor_movement, 2)) < 5):
-        print("strong")
+        shift = "strong"
     elif(abs(round(sensor_movement, 2)) > 5):
-        print("extreme")
+        shift = "extreme"
     else:
-        print("minimal")
+        shift = "minimal"
+    
+    return shift
+        
+   
+        
+        
+def max_height(object, time, geolocation):
+    try:
+        astroposition = SkyCoord.from_name(object)
+    
+        altaz_frame = AltAz(obstime=time, location=geolocation)
+
+        dso_altaz = astroposition.transform_to(altaz_frame)
+    
+        return dso_altaz.alt
+    except:
+        print("there was an error retrieving coordinates")
+    
+    
+def rise_set_direction(object, time, geolocation):
+    try:
+        astroposition = SkyCoord.from_name(object)
+    
+        altaz_frame = AltAz(obstime=time, location=geolocation)
+
+        dso_altaz = astroposition.transform_to(altaz_frame)
+    
+        return dso_altaz.az
+    except:
+        print("there was an error retrieving coordinates")
+    
+    
+def cardinal(az):
+    if az >= 337.5 or az <= 22.5:
+        cardinal = "N"
+    elif az > 22.5 and az <= 45:
+        cardinal = "NNE"
+    elif az > 45 and az <= 67.5:
+        cardinal = "NE"
+    elif az > 67.5 and az <= 90:
+        cardinal = "ENE"
+    elif az > 90 and az <= 112.5:
+        cardinal = "E"
+    elif az > 112.5 and az <= 135:
+        cardinal = "ESE"
+    elif az > 135 and az <= 157.5:
+        cardinal = "SE"
+    elif az > 157.5 and az <= 180:
+        cardinal = "SSE"
+    elif az > 180 and az <= 202.5:
+        cardinal = "S"
+    elif az > 202.5 and az <= 225:
+        cardinal = "SSW"
+    elif az > 225 and az <= 247.5:
+        cardinal = "SW"
+    elif az > 247.5 and az <= 270:
+        cardinal = "WSW"
+    elif az > 270 and az <= 292.5:
+        cardinal = "W"
+    elif az > 292.5 and az <= 315:
+        cardinal = "WNW"
+    elif az > 315 and az <= 337.5:
+        cardinal = "NW"
+    else:
+        cardinal = "Invalid"
+    
+    
+  
+    return cardinal
+        
+
+while True:
+    # Initializes geocoder
+    fav_iteration = 0
+    geolocator = Nominatim(user_agent="city_geocoder")
+    default_city = "Rome"
+
+    print("------------------------------------------------------------ ")
+    print("CELESTIAL OBJECT VISIBILITY ASSESSOR")
+
+    dso = input("please type identifier for a deep space object, else 'f' to see your favorites or 'help': ")
+    if(dso == "help"):
+        print("This console app quickly provides the user with Alt/Az coordinates of a given Deep space object and uses that data to assess its overall visibility and to calculate rising/set times, along with the maximum field rotation at a certain exposure. Here's a few tips to use the program:")
+        print(" ")
+        print(f"1) The Skycoord function uses the SIMBAD database and as input, if you input a DSO's name and it doesn't get recognized, you might want to try typing its identifier(Messier, NGC, Coldwell). If an identifier is typed, such as C20 (north america nebula) and the object is still not found, try to input its alternate identifiers using NGC or Messier ")
+        print(f"2) The field rotation calculator is based on the methods discussed in this video 'https://youtu.be/WacU_S_iWHQ?si=iVpUZ4UM7IzRD-78'")
+        print("3) Currently the program doesn't really account for time zones, so it might display the wrong time while still providing the correct current coordinates, depending on your system")
+        print(f"4) You can change the default city in the code, look for the variable named 'default_city'. Your current default city is  - {default_city} - ")
+        continue
+    elif(dso == 'f'):
+       observer_location = city()
+       local_time = get_time()
+       favorites(observer_location, local_time)
+       continue
+       
+    else:
+        # Pulls Ra/Dec coordinates of the DSO
+        try:
+            astroposition = SkyCoord.from_name(dso)
+        
+        except Exception as e:
+            print(f"The object {dso} wasn't found in the database. Error: {e}")
+            continue
+        print(" ---------------------------------------------------------- ")
+    observer_location = city()
+    local_time = get_time()
+   
+
+    # Creates a frame for Ra/Dec - Alt/Az conversion using the input time and the observer location
+    altaz_frame = AltAz(obstime=local_time, location=observer_location)
+
+    # Transforms the DSO coordinates to Alt/Az
+    dso_altaz = astroposition.transform_to(altaz_frame)
+    print(" ")
+    print("------------------------------------------------------------ ")
+    print("RESULTS: ")
+    print(f"{dso}'s alt-az coordinates are: Altitude {dso_altaz.alt}, Azimuth {dso_altaz.az}")
+    print(" ")
+    print("VISIBILITY: ", end=" ")
+    altitude = dso_altaz.alt.deg
+    if altitude > 0:
+        print(f"{dso} is above the horizon,", end=" ")
+        
+        if 20 < altitude < 70:
+            print("well visible")
+        elif 0 < altitude < 20:
+            print("hardly visible")
+        elif 70 < altitude < 85:
+            print("visible but Seestar might struggle (very high in the sky)")
+        elif altitude > 85:
+            print("visible but Seestar can't track the object (directly overhead)")
+            
+        
+        
+        observer = Observer(location=observer_location)
+        target = FixedTarget(coord=astroposition, name=dso)
+        
+        transit_time = observer.target_meridian_transit_time(local_time, target, which='next')
+        print(f"{dso} will transit at {transit_time.iso}', ", end=" ")
+        transit_height = max_height(dso, transit_time.iso, observer_location)
+        print(f"({transit_height}deg)")
+
+        
+        
+        
+        set_time = observer.target_set_time(local_time, target, which='nearest')
+        print(f"{dso} will set on {set_time.iso}", end="")
+        
+        try:
+            set_direction_az = rise_set_direction(dso, set_time.iso, observer_location)
+            direction = cardinal((set_direction_az).deg)
+            print(f" at {direction}")
+        except:
+            print("set time could not retrieved")
+       
+        
+        
+        print(" ")
+        moon_radec = get_body(body = 'Moon', time = local_time, location = observer_location)
+        altaz_frame_moon = AltAz(obstime=local_time, location=observer_location)
+        moon_altaz = moon_radec.transform_to(altaz_frame_moon)
+        
+        illumination = moon_illumination(local_time)
+        illumination_percentage = illumination * 100
+        
+        
+        
+        azdist = abs((moon_altaz.az - dso_altaz.az).deg)
+        altdist = abs((moon_altaz.alt - dso_altaz.alt).deg)
+        
+        if(moon_altaz.alt > 0):
+            print(f"moon is above the horizon(alt: {round(moon_altaz.alt.deg)}), ", end= " ")
+            if(azdist < 15 and altdist < 15):
+                print(f"close to {dso}, ", end=" ")
+                print(" ")
+            elif(altdist > 15 and azdist < 15):
+                print(f"in the general sky area of {dso},", end=" ")
+                print(" ")
+
+            if(illumination_percentage < 10):
+                print(f"but its not very bright ({illumination_percentage:.2f}%)")
+            elif(illumination_percentage > 10 and illumination_percentage < 40):
+                print(f"and its moderately bright({illumination_percentage:.2f}%)")
+            elif(illumination_percentage > 40 and illumination_percentage < 70):
+                print(f"and it is considerably bright({illumination_percentage:.2f}%)")
+            else:
+                print(f"and it is very bright({illumination_percentage:.2f}%)")
+                
+                
+        else:
+            print(f"the moon is under the horizon {round(moon_altaz.alt.deg, 2)}")
+            print(" ")
+             
+        
+        
+        
+      
+        
+    else:
+        print(f"{dso} is under the horizon")
+        print(" ")
+        #calculates rising time 
+        observer = Observer(location=observer_location)
+        target = FixedTarget(coord=astroposition, name=dso)
+        rising_time = observer.target_rise_time(specific_time, target, which='nearest')
+        print(f"{dso} will rise on {rising_time.iso}")
+        
+        
+        #calculates rising direction
+        set_direction_az = rise_set_direction(dso, rising_time.iso, observer_location)
+        try:
+        
+            direction = cardinal((set_direction_az).deg)
+            print(f" at {direction}")       
+        except:
+            print("rising information could not be retrieved")
+        transit_time = observer.target_meridian_transit_time(local_time, target, which='next')
+        print(f"{dso} will transit at {transit_time.iso}', ", end=" ")
+        transit_height = max_height(dso, transit_time.iso, observer_location)
+        print(f"({transit_height}deg)")
+
+        print(" ")
+       
+        continue
+    
+    rotation = field_rotation(observer_location, dso_altaz)
+    print(rotation)
+    
+    hour_shift_dso(observer_location, dso, local_time)
+    
+   
+        
+
+     
+    
+   
+
 
