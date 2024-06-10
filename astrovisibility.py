@@ -118,6 +118,8 @@ def favorites(observer_location, local_time):
             
    
 def city():
+     geolocator = Nominatim(user_agent="city_geocoder")
+     default_city = "Rome" 
      while True:
      
         city_name = input("type city name: ('d' for default) ")
@@ -126,21 +128,21 @@ def city():
                 observer_location = geolocator.geocode(default_city)
                 observer_location = EarthLocation(lat=observer_location.latitude, lon=observer_location.longitude)
                 city_name = default_city
-                print(f"coordinates for{city_name}: LAT: {observer_location.lat}, LON: {observer_location.lon} ")
+                print(f"coordinates for {city_name}: LAT: {observer_location.lat}, LON: {observer_location.lon} ")
                 break
 
 
             else:
                 observer_location = geolocator.geocode(city_name)
-                print(f"coordinates for{city_name}: LAT: {observer_location.lat}, LON: {observer_location.lon} ")
+                print(f"coordinates for {city_name}: LAT: {observer_location.latitude}, LON: {observer_location.longitude} ")
                 if observer_location is None:
-                    print("Your city wasn't found")
+                    print("city wasn't found")
                     continue
                 observer_location = EarthLocation(lat=observer_location.latitude, lon=observer_location.longitude)
-                print(f"You chose the city: {city_name}")
+                
                 break
 
-            print(f"Location for {city_name}: lat={observer_location.lat}, lon={observer_location.lon}")
+            print(f"Location for {city_name}: lat={observer_location.latitude}, lon={observer_location.longitude}")
             break
         except Exception as e:
             print(f"Your city wasn't found. Error: {e}")
@@ -337,7 +339,7 @@ def repeat(local_time, observer_location, dso):
         #calculates rising time 
         observer = Observer(location=observer_location)
         target = FixedTarget(coord=astroposition, name=dso)
-        rising_time = observer.target_rise_time(specific_time, target, which='nearest')
+        rising_time = observer.target_rise_time(local_time, target, which='nearest')
         print(f"{dso} will rise on {rising_time.iso}")
         
         
@@ -356,7 +358,7 @@ def repeat(local_time, observer_location, dso):
 
         print(" ")
        
-        hour_shift(observer_location, dso, local_time)
+        hour_shift_dso(observer_location, dso, local_time)
     
     rotation = field_rotation(observer_location, dso_altaz)
     print(rotation)
@@ -373,53 +375,39 @@ def field_rotation(observer_location, dso_altaz):
     print("general assesment: ")
     
     if((observer_location.lat).deg <= 10):
-        print(f"your observing location {observer_location.lat} is close/at the equator, where field rotation is maximum.")
-    elif((observer_location.lat).deg >= 75):
-        print(f"your observing location {observer_location.lat} is close/at to the poles, where field rotation is minimal.")
+        print(f"CAUTION: your observing location (lat: {abs(observer_location.lat)}) is close/at the equator, where field rotation is maximum.")
+    elif((observer_location.lat).deg >= 60):
+        print(f"OPTIMAL: your observing location {abs(observer_location.lat)} is close/at the poles, where field rotation is minimal.")
     else:
         print("")
         
 
     
     current_direction = cardinal((dso_altaz.az).deg)
-    print(f"{dso} is at {current_direction}", end=" ")
+    print(f"{dso} is at {current_direction}.", end=" ")
     
-    if(current_direction == "N"):
-        print("which means field rotation might be intensified,", end=" " )
-        if(altitude > 50):
-            print("the object's elevation is also more than 50 degrees, which can increase the effects further ")
-        else:
-            print("your object's elevation is less than 50 degrees, the closer it is to the horizon, the better")
-    elif(current_direction == "NNE"):
-        print("which means field rotation might be intensified,", end=" " )
-        if(altitude > 50):
-            print("the object's elevation is also more than 50 degrees, which can increase the effects further ")
-        else:
-            print("your object's elevation is less than 50 degrees, the closer it is to the horizon, the better")
-    elif(current_direction == "NE"):
-        print("which means field rotation might be intensified,", end=" " )
-        if(altitude > 50):
-            print("the object's elevation is also more than 50 degrees, which can increase the effects further ")
-        else:
-            print("your object's elevation is less than 50 degrees, the closer it is to the horizon, the better")
-    elif(current_direction == "NNW"):
-        print("which means field rotation might be intensified,", end=" " )
-        if(altitude > 50):
-            print("the object's elevation is also more than 50 degrees, which can increase the effects further ")
-        else:
-            print("your object's elevation is less than 50 degrees, the closer it is to the horizon, the better")
-    elif(current_direction == "NW"):
-        print("which means field rotation might be intensified,", end=" " )
-        if(altitude > 50):
-            print("the object's elevation is also more than 50 degrees, which can increase the effects further ")
-        else:
-            print("your object's elevation is less than 50 degrees, the closer it is to the horizon, the better")
-    elif(current_direction == "WNW"):
-        print("which means field rotation might be intensified,", end=" " )
-        if(altitude > 50):
-            print("the object's elevation is also more than 50 degrees, which can increase the effects further ")
-        else:
-            print("your object's elevation is less than 50 degrees, the closer it is to the horizon, the better")
+    if(current_direction == "N" or current_direction == "NNW" or current_direction == "NNE"):
+        print("Caution: the object is almost at/at the north, where field rotation is maximized.", end=" ")
+    elif(current_direction == "S" or current_direction == "SSW" or current_direction == "SSE"):
+        print("Caution: the object is almost at/ at the south, where field rotation is usually intensified.", end=" ")
+    elif(current_direction == "NE" or current_direction == "NW"):
+        print("Caution: the object is getting closer to the north, where field rotation is usually intensified.", end=" ")
+    elif(current_direction == "SE" or current_direction == "SW"):
+        print("Caution: the object is getting closer to the south, where field rotation is usually intensified.", end=" ")
+    elif(current_direction == "E" or current_direction == "ESE" or current_direction == "ENE"):
+        print("the object is closer/at the east, where field rotation is minimized.", end=" ")
+    elif(current_direction == "W" or current_direction == "WSW" or current_direction == "WNW"):
+        print("the object is closer/at the west, where field rotation is minimized.", end=" ")
+    
+    if(dso_altaz.alt.deg < 50):
+        print("The object's elevation is less than 50 degrees(the lower, the better)")
+    else:
+        print("The object's elevation is more than 50 degrees, effects might be intensified")
+     
+        
+        
+
+        
     
     print(" ")
     print("detailed calculations:")
@@ -531,8 +519,7 @@ def cardinal(az):
 while True:
     # Initializes geocoder
     fav_iteration = 0
-    geolocator = Nominatim(user_agent="city_geocoder")
-    default_city = "Rome"
+    
 
     print("------------------------------------------------------------ ")
     print("CELESTIAL OBJECT VISIBILITY ASSESSOR")
@@ -661,7 +648,7 @@ while True:
         #calculates rising time 
         observer = Observer(location=observer_location)
         target = FixedTarget(coord=astroposition, name=dso)
-        rising_time = observer.target_rise_time(specific_time, target, which='nearest')
+        rising_time = observer.target_rise_time(local_time, target, which='nearest')
         print(f"{dso} will rise on {rising_time.iso}")
         
         
@@ -679,7 +666,8 @@ while True:
         print(f"({transit_height}deg)")
 
         print(" ")
-       
+        hour_shift_dso(observer_location, dso, local_time)
+    
         continue
     
     rotation = field_rotation(observer_location, dso_altaz)
