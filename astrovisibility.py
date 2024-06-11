@@ -10,7 +10,7 @@ from astropy.coordinates import get_body, solar_system_ephemeris
 from astroplan import moon_illumination
 
 def favorites(observer_location, local_time):
-    ++fav_iteration
+    
    
     #put your favorite deep space targets in this array
     dsos = ["M31", "M45", "M33", "M51", "NGC2024", "Orion nebula"]
