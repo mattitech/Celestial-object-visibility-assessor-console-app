@@ -297,8 +297,11 @@ def repeat(local_time, observer_location, dso):
         altaz_frame_moon = AltAz(obstime=local_time, location=observer_location)
         moon_altaz = moon_radec.transform_to(altaz_frame_moon)
         
+       
+        
         illumination = moon_illumination(local_time)
         illumination_percentage = illumination * 100
+        moon_direction = cardinal((moon_altaz.az).deg)
         
         
         
@@ -306,7 +309,7 @@ def repeat(local_time, observer_location, dso):
         altdist = abs((moon_altaz.alt - dso_altaz.alt).deg)
         
         if(moon_altaz.alt > 0):
-            print(f"moon is above the horizon(alt: {round(moon_altaz.alt.deg)}), ", end= " ")
+            print(f"moon is above the horizon(alt: {round(moon_altaz.alt.deg)}, {moon_direction}), ", end= " ")
             if(azdist < 15 and altdist < 15):
                 print(f"close to {dso}, ", end=" ")
                 print(" ")
@@ -325,7 +328,7 @@ def repeat(local_time, observer_location, dso):
                 
                 
         else:
-            print(f"the moon is under the horizon {round(moon_altaz.alt.deg, 2)}")
+            print(f"the moon is under the horizon ({round(moon_altaz.alt.deg, 2)})")
             print(" ")
              
         
@@ -435,7 +438,7 @@ def field_rotation(observer_location, dso_altaz):
     image_rot_rad = math.radians(image_rotation_rate)
 
     sensor_movement = math.sin(image_rot_rad / 3600) * sensor_diagonal * exposure
-    print(f"max sensor movement: {round(sensor_movement, 2)} pixels -", end=" ")
+    print(f"max sensor movement({exposure}s): {round(sensor_movement, 2)} pixels -", end=" ")
     
     if(abs(round(sensor_movement, 2)) > 1 and abs(round(sensor_movement, 2)) < 3 ):
         shift = "noticeable"
@@ -531,7 +534,7 @@ while True:
         print(f"1) The Skycoord function uses the SIMBAD database and as input, if you input a DSO's name and it doesn't get recognized, you might want to try typing its identifier(Messier, NGC, Coldwell). If an identifier is typed, such as C20 (north america nebula) and the object is still not found, try to input its alternate identifiers using NGC or Messier ")
         print(f"2) The field rotation calculator is based on the methods discussed in this video 'https://youtu.be/WacU_S_iWHQ?si=iVpUZ4UM7IzRD-78'")
         print("3) Currently the program doesn't really account for time zones, so it might display the wrong time while still providing the correct current coordinates, depending on your system")
-        print(f"4) You can change the default city in the code, look for the variable named 'default_city'. Your current default city is  - {default_city} - ")
+        
         continue
     elif(dso == 'f'):
        observer_location = city()
@@ -608,6 +611,7 @@ while True:
         
         illumination = moon_illumination(local_time)
         illumination_percentage = illumination * 100
+        moon_direction = cardinal((moon_altaz.az).deg)
         
         
         
@@ -615,11 +619,11 @@ while True:
         altdist = abs((moon_altaz.alt - dso_altaz.alt).deg)
         
         if(moon_altaz.alt > 0):
-            print(f"moon is above the horizon(alt: {round(moon_altaz.alt.deg)}), ", end= " ")
+            print(f"moon is above the horizon(alt: {round(moon_altaz.alt.deg)}, {moon_direction}), ", end= " ")
             if(azdist < 15 and altdist < 15):
                 print(f"close to {dso}, ", end=" ")
                 print(" ")
-            elif(altdist > 15 and azdist < 15):
+            elif(altdist > 15 and azdist < 25):
                 print(f"in the general sky area of {dso},", end=" ")
                 print(" ")
 
