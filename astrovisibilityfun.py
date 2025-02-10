@@ -13,37 +13,144 @@ from astroquery.simbad import Simbad
 
 Simbad.add_votable_fields('ids', 'otype')
 
-def astrodark(altitude):
-   #defines a new Time object with the same current date but starts from 17:00
+def moon_position(local_time, observer_location):
+    moon_radec = get_body(body = 'Moon', time = local_time, location = observer_location)
+    altaz_frame_moon = AltAz(obstime=local_time, location=observer_location)
+    moon_altaz = moon_radec.transform_to(altaz_frame_moon)
+        
+    illumination = moon_illumination(local_time)
+    illumination_percentage = illumination * 100
+    moon_direction = cardinal((moon_altaz.az).deg)
 
-   current_year = datetime.datetime.now().year
-   day = datetime.datetime.now().day
-   month = datetime.datetime.now().month
+    observer = Observer(location=observer_location)
+    
+                
+    set_time = observer.moon_set_time(local_time, which="next")
+    rise_time = observer.moon_rise_time(local_time, which="next")
 
-   local_time = Time(f"{current_year}-{month}-{day} 16:00:00", scale='utc')
+    
+    
+
+    return moon_radec, moon_altaz, set_time, rise_time ,illumination_percentage, moon_direction
+
+def astrodarkStart(local_time, altitude, observer_location):
+   current_year = local_time.datetime.year
+   day = local_time.datetime.day
+   month = local_time.datetime.month
+
    
-   searchHour = local_time.datetime.hour
 
-   while searchHour != 5:
+    # Create a datetime object for the start time
+   dt = datetime.datetime(current_year, month, day, 16, 0, 0)
+
+    # Increment the day for the end time, considering the month rollover
+   end_dt = dt + datetime.timedelta(days=1)
+
+    # Convert back to an astropy Time object
+   local_time = Time(dt, scale='utc')  # start search hour
+   end_time = Time(end_dt, scale='utc')  # end search hour
+
+   
+
+   while local_time <= end_time:
         local_time += 1 * u.minute
-        searchHour = local_time.datetime.hour
+
         sun_radec = get_body(body = "Sun", time = local_time, location = observer_location)
         altaz_frame_sun = AltAz(obstime=local_time, location=observer_location)
         sun_altaz = sun_radec.transform_to(altaz_frame_sun)
         altitude = (sun_altaz.alt).deg
 
-        if altitude > -18:
+        
+
+        if altitude <= -18:
+           
+            
+            moon_radec, moon_altaz, set_time, _ , _, _ = moon_position(local_time, observer_location)
+
+            
+            moon_altitude = (moon_altaz.alt).deg
+
+            if moon_altitude > 0:
+                
+                
+
+                local_time = set_time
+
+                
+
+                sun_radec = get_body(body = "Sun", time = local_time, location = observer_location)
+                altaz_frame_sun = AltAz(obstime=local_time, location=observer_location)
+                sun_altaz = sun_radec.transform_to(altaz_frame_sun)
+                altitude = (sun_altaz.alt).deg
+
+                if altitude <= -18:
+                   
+                    darktime = local_time
+                    return darktime
+                else:
+                    
+                    break
+            else:
+              
+              darktime = local_time
+              return darktime
+        else: 
+            
             continue
-        else:
-            darktime = local_time
-            return darktime
-   print("No astronomical darkness in the chosen date")
+
+    
             
     
         
     
 
         
+def astrodarkEnd(local_time, darktime, observer_location):
+    current_year = darktime.datetime.year
+    day = darktime.datetime.day
+    month = darktime.datetime.month
+
+    # Create a datetime object for the start time
+    dt = datetime.datetime(current_year, month, day, 3, 30, 0)
+   
+    # Increment the day for the end time, considering the month rollover
+    if 0 < local_time.datetime.hour < 6: 
+        dayjump = dt
+    else:
+        dayjump = dt + datetime.timedelta(days=1)
+
+    # Convert back to an astropy Time object
+    start_time = Time(dayjump, scale='utc')  # start search hour
+    end_time = Time(dayjump + datetime.timedelta(hours=7), scale='utc')  # end search hour
+
+    moon_radec, moon_altaz, set_time, rise_time, _, _ = moon_position(darktime, observer_location)
+
+    print(f"{rise_time.iso}")
+    # Checks if moonrise comes before the hour when we start searching for when the sun is going again above -18
+    if rise_time < start_time:
+        sun_radec = get_body(body="Sun", time=rise_time, location=observer_location)
+        altaz_frame_sun = AltAz(obstime=rise_time, location=observer_location)
+        sun_altaz = sun_radec.transform_to(altaz_frame_sun)
+        altitude = sun_altaz.alt.deg
+        if altitude <= -18:
+            return rise_time
+
+    while start_time < end_time:
+        start_time += 1 * u.minute
+        sun_radec = get_body(body="Sun", time=start_time, location=observer_location)
+        altaz_frame_sun = AltAz(obstime=start_time, location=observer_location)
+        sun_altaz = sun_radec.transform_to(altaz_frame_sun)
+        altitude = sun_altaz.alt.deg
+
+        if altitude > -18 or (start_time.datetime.hour == rise_time.datetime.hour and start_time.datetime.minute == rise_time.datetime.minute):
+            return start_time
+    return None
+
+    
+
+
+   
+
 
 
 def favorites(observer_location, local_time):
@@ -334,6 +441,8 @@ def year_visibility(local_time, observer_location, dso):
 
     
 def repeat(local_time, observer_location, dso):
+    warnings = []
+
     astroposition = SkyCoord.from_name(dso)
     
     altaz_frame = AltAz(obstime=local_time, location=observer_location)
@@ -346,12 +455,29 @@ def repeat(local_time, observer_location, dso):
     print(" ")
 
     print(f" Sun altitude: {sun_altitude} ")
+    _, moon_altaz, _, _ , _, _ = moon_position(local_time, observer_location)
+    moon_altitude_i = (moon_altaz.alt).deg
 
+    if sun_altitude > 0:
+        warnings.append("SUN!")
 
-    if sun_altitude > -18:
-        astronomical_darkness = astrodark(sun_altitude)
-        print(f"Astro darkness at: {astronomical_darkness.iso}")
+    if sun_altitude > -18 or moon_altitude_i > 0:
+        warnings.append("TWILIGHT!")
+        try:
+            astronomical_darkness = astrodarkStart(local_time, sun_altitude, observer_location)
+            print(f"Astro starts at: {astronomical_darkness.iso}")
+            astronomical_darkness_end = astrodarkEnd(local_time, astronomical_darkness, observer_location)
+            print(f"Astrodark ends at: {astronomical_darkness_end.iso}")
+        except:
+            print("NO ASTRO DARK")
+        
+
+        
     
+    else:
+        astronomical_darkness = local_time
+        astronomical_darkness_end = astrodarkEnd(local_time, astronomical_darkness, observer_location)
+
 
     # Transforms the DSO coordinates to Alt/Az
     dso_altaz = astroposition.transform_to(altaz_frame)
@@ -364,7 +490,7 @@ def repeat(local_time, observer_location, dso):
     altitude = dso_altaz.alt.deg
     if altitude > 0:
         print(f"{dso} is above the horizon,", end=" ")
-        warnings = []
+        
         if 20 < altitude < 70:
             print("well visible")
         elif 0 < altitude < 20:
@@ -404,22 +530,9 @@ def repeat(local_time, observer_location, dso):
         
         
         print(" ")
-        moon_radec = get_body(body = 'Moon', time = local_time, location = observer_location)
-        altaz_frame_moon = AltAz(obstime=local_time, location=observer_location)
-        moon_altaz = moon_radec.transform_to(altaz_frame_moon)
 
+        moon_radec, moon_altaz, set_time, rise_time ,illumination_percentage, moon_direction = moon_position(local_time, observer_location)
         
-        
-       
-        
-        illumination = moon_illumination(local_time)
-        illumination_percentage = illumination * 100
-        moon_direction = cardinal((moon_altaz.az).deg)
-        
-        
-        
-        azdist = abs((moon_altaz.az - dso_altaz.az).deg)
-        altdist = abs((moon_altaz.alt - dso_altaz.alt).deg)
         
         if(moon_altaz.alt > 0):
             print(f"moon is above the horizon(alt: {round(moon_altaz.alt.deg)}, {moon_direction}), ", end= " ")
@@ -429,12 +542,7 @@ def repeat(local_time, observer_location, dso):
           
 
 
-            if(azdist < 15 and altdist < 15):
-                print(f"close to {dso}, ", end=" ")
-                print(" ")
-            elif(altdist > 15 and azdist < 15):
-                print(f"in the general sky area of {dso},", end=" ")
-                print(" ")
+            
 
             if(illumination_percentage < 10):
                 print(f"but its not very bright ({illumination_percentage:.2f}%)")
@@ -727,12 +835,27 @@ while True:
 
     print(f" Sun altitude: {sun_altitude} ")
 
+    _, moon_altaz, _, _ , _, _ = moon_position(local_time, observer_location)
+    moon_altitude_i = (moon_altaz.alt).deg
 
-    if sun_altitude > -18:
-        astronomical_darkness = astrodark(sun_altitude)
-        print(f"Astro darkness at: {astronomical_darkness.iso}")
-    
+    if sun_altitude > 0:
+        warnings.append("SUN!")
 
+    if sun_altitude > -18 or moon_altitude_i > 0:
+        warnings.append("TWILIGHT!")
+        try:
+            astronomical_darkness = astrodarkStart(local_time, sun_altitude, observer_location)
+            print(f"Astro starts at: {astronomical_darkness.iso}")
+            astronomical_darkness_end = astrodarkEnd(local_time, astronomical_darkness, observer_location)
+            print(f"Astrodark ends at: {astronomical_darkness_end.iso}")
+        except:
+            print("NO ASTRO DARK")
+        
+        
+    else:
+        astronomical_darkness = local_time
+        astronomical_darkness_end = astrodarkEnd(local_time, astronomical_darkness, observer_location)
+        print(f"Astrodarkness ends at: {astronomical_darkness_end.iso}")
 
    
 
@@ -740,7 +863,7 @@ while True:
     print(" ")
     print("------------------------------------------------------------ ")
     print("RESULTS: ")
-    print(f"{dso}'s alt-az coordinates are: Altitude {dso_altaz.alt}, Azimuth {dso_altaz.az}")
+    print(f"{dso}'s alt-az coordinates are: Altitude {dso_altaz.alt:.2f}, Azimuth {dso_altaz.az:.2f}")
     print(" ")
     print("VISIBILITY: ", end=" ")
     altitude = dso_altaz.alt.deg
@@ -792,28 +915,15 @@ while True:
         
         
         print(" ")
-        moon_radec = get_body(body = 'Moon', time = local_time, location = observer_location)
-        altaz_frame_moon = AltAz(obstime=local_time, location=observer_location)
-        moon_altaz = moon_radec.transform_to(altaz_frame_moon)
-        
-        illumination = moon_illumination(local_time)
-        illumination_percentage = illumination * 100
-        moon_direction = cardinal((moon_altaz.az).deg)
+       
+        moon_radec, moon_altaz, set_time, rise_time , illumination_percentage, moon_direction,  = moon_position(local_time, observer_location)
         
         
-        
-        azdist = abs((moon_altaz.az - dso_altaz.az).deg)
-        altdist = abs((moon_altaz.alt - dso_altaz.alt).deg)
+     
         
         if(moon_altaz.alt > 0):
             print(f"moon is above the horizon(alt: {round(moon_altaz.alt.deg)}, {moon_direction}), ", end= " ")
-            if(azdist < 15 and altdist < 15):
-                print(f"close to {dso}, ", end=" ")
-                
-                print(" ")
-            elif(altdist > 15 and azdist < 25):
-                print(f"in the general sky area of {dso},", end=" ")
-                print(" ")
+           
 
             if(illumination_percentage < 10):
                 print(f"but its not very bright ({illumination_percentage:.2f}%)")
@@ -887,12 +997,3 @@ while True:
     
     print(" ")
     hour_shift_dso(observer_location, dso, local_time)
-    
-   
-        
-
-     
-    
-   
-
-
